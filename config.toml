@@ -1,0 +1,19 @@
+[libra-0.config]
+phidget-id = 716304
+load-cell-id = 0
+gain = 4946698.13678
+offset = -107.9425
+
+[libra-0.device]
+model = "LibraV0"
+number = 0
+
+#[libra-1.config]
+#phidget-id = 716304
+#load-cell-id = 0
+#gain = 1.0
+#offset = 0.0
+#
+#[libra-1.device]
+#model = "LibraV0"
+#number = 0
