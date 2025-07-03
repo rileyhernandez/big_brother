@@ -1,19 +1,44 @@
 [libra-0.config]
 phidget-id = 716304
 load-cell-id = 0
-gain = 4946698.13678
-offset = -107.9425
+gain = 9795012.35633 #4946698.13678
+offset = 674.1 #-107.9425
 
 [libra-0.device]
 model = "LibraV0"
 number = 0
 
-#[libra-1.config]
-#phidget-id = 716304
-#load-cell-id = 0
-#gain = 1.0
-#offset = 0.0
-#
-#[libra-1.device]
-#model = "LibraV0"
-#number = 0
+
+[libra-1.config]
+phidget-id = 716800
+load-cell-id = 0
+gain = 4850591.56128
+offset = 93.15464
+
+[libra-1.device]
+model = "LibraV0"
+number = 1
+
+[libra-2.config]
+phidget-id = 716800
+load-cell-id = 1
+gain = 4948323.42714
+offset = 322.37737
+
+[libra-2.device]
+model = "LibraV0"
+number = 2
+
+[libra-3.config]
+phidget-id = 716800
+load-cell-id = 2
+gain = 4835161.7044
+offset = 373.75691
+
+[libra-3.device]
+model = "LibraV0"
+number = 3
+
+# thread1 = threading.Thread(target=Scale.new_and_watch, args=(0, 4850591.56128, 93.15464, 740))
+# thread2 = threading.Thread(target=Scale.new_and_watch, args=(1, 4948323.42714, 322.37737, 100))
+# thread3 = threading.Thread(target=Scale.new_and_watch, args=(2, 4835161.7044, 373.75691, 740))

@@ -1,12 +1,12 @@
-use crate::data::DataAction;
+use crate::data::{DataAction, DataEntry, Database};
 use crate::error::Error;
 use log::info;
 use menu::device::Device;
 use menu::libra::Libra;
 use menu::read::Read;
 use phidget::{Phidget, devices::VoltageRatioInput};
-use serde_json::{Value as JsonValue, json};
 use std::path::Path;
+use std::thread::sleep;
 use std::time::Duration;
 
 const BUFFER_LENGTH: usize = 20;
@@ -40,7 +40,7 @@ impl Scale {
             vin.serial_number().map_err(Error::Phidget)?,
             vin.channel().map_err(Error::Phidget)?
         );
-        std::thread::sleep(Duration::from_secs(1));
+        sleep(Duration::from_secs(1));
         Ok(Self {
             vin,
             device,
@@ -49,6 +49,16 @@ impl Scale {
             weight_buffer: Vec::with_capacity(BUFFER_LENGTH),
             last_stable_weight: None,
         })
+    }
+    pub fn restart(&mut self) -> Result<(), Error> {
+        self.vin.close().map_err(Error::Phidget)?;
+        self.vin
+            .open_wait(Duration::from_secs(5))
+            .map_err(Error::Phidget)?;
+        self.weight_buffer.clear();
+        self.last_stable_weight = None;
+        sleep(Duration::from_secs(2));
+        Ok(())
     }
     pub fn get_device(&self) -> Device {
         self.device.clone()
@@ -90,38 +100,36 @@ impl Scale {
             Ok(Weight::Unstable(reading))
         }
     }
-    pub fn check_last_stable(&mut self) -> Option<DataAction> {
+    pub fn check_for_action(&mut self) -> Option<DataEntry> {
         if self.is_stable() {
             let last = self.weight_buffer.last().unwrap();
             if let Some(last_stable) = self.last_stable_weight {
-                if (last_stable - last).abs() > MAX_NOISE {
-                    self.last_stable_weight = Some(*last);
+                let delta = last - last_stable;
+                if delta.abs() > MAX_NOISE {
                     println!("New stable value: {:?}g", last);
-                    println!("Delta since last stable: {}", last - last_stable);
+                    println!("Delta since last stable: {}", delta);
+                    self.last_stable_weight = Some(*last);
+                    let action = {
+                        if delta > 0. {
+                            DataAction::Refilled
+                        } else {
+                            DataAction::Served
+                        }
+                    };
+                    return Some(DataEntry::new(
+                        action,
+                        delta,
+                        self.device.clone(),
+                        Database::get_timestamp().unwrap(),
+                        "Caldo HQ".into(),
+                        "Fake Chicken Wings".into(),
+                    ));
                 }
-                None
-            } else {
-                self.last_stable_weight = Some(*last);
-                None
             }
-        } else {
-            None
+            self.last_stable_weight = Some(*last);
         }
+        None
     }
-    // pub fn weight_once_stable(&mut self, timeout: Duration) -> Result<f64, Error> {
-    //     // self.weight_buffer = Vec::with_capacity(BUFFER_LENGTH);
-    //     let start_time = std::time::Instant::now();
-    //     loop {
-    //         let weight = self.get_weight()?;
-    //         if let Weight::Stable(w) = weight {
-    //             return Ok(w);
-    //         }
-    //         if start_time.elapsed() > timeout {
-    //             return Err(Error::ScaleTimeout);
-    //         }
-    //         std::thread::sleep(Duration::from_millis(250));
-    //     }
-    // }
     fn from_libra_menu(libra: Libra) -> Result<Self, Error> {
         Self::new(
             libra.config.phidget_id,
@@ -145,14 +153,11 @@ pub enum Weight {
     Unstable(f64),
 }
 impl Weight {
-    pub fn to_json_value(&self) -> JsonValue {
+    pub fn get_amount(&self) -> f64 {
         match self {
-            Weight::Stable(value) => json!({ "stable": value }),
-            Weight::Unstable(value) => json!({ "unstable": value }),
+            Weight::Stable(value) => *value,
+            Weight::Unstable(value) => *value,
         }
-    }
-    pub fn to_json_string(&self) -> Result<String, Error> {
-        serde_json::to_string(&self.to_json_value()).map_err(Error::SerdeJson)
     }
 }
 impl std::fmt::Display for Weight {

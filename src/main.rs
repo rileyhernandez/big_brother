@@ -1,66 +1,84 @@
-use crate::data::{Backend, DataAction, Database, Log};
+use crate::data::{DataAction, DataEntry, Database};
 use crate::error::Error;
-use crate::scale::{Scale, Weight};
-use menu::device::{Device, Model};
-use std::path::Path;
-use std::time::Duration;
+use crate::scale::Scale;
+use std::time::{Duration, Instant};
 use std::{env, thread};
-use tokio;
-use tokio::time::MissedTickBehavior;
-
-mod config;
 mod data;
 mod error;
 mod scale;
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     // TODO: log boot in db
 
     let current_directory = env::current_dir().unwrap();
     let config_path = current_directory.join("config.toml");
-    let mut scales = Scale::from_config(&*config_path)?;
+    let mut scales = Scale::from_config(&config_path)?;
 
     let database_path = current_directory.join("data.db");
     let database = Database::new(database_path)?;
 
-    let mut interval = tokio::time::interval(Duration::from_millis(500));
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let initial_data_entries: Vec<DataEntry> = scales
+        .iter_mut()
+        .map(|scale| {
+            let weight = scale.get_weight()?;
+            Ok::<DataEntry, Error>(DataEntry::new(
+                DataAction::Starting,
+                weight.get_amount(),
+                scale.get_device(),
+                Database::get_timestamp()?,
+                "Caldo HQ".into(),
+                "Fake Chicken Wings".into(),
+            ))
+        })
+        .collect::<Result<_, _>>()?;
+    database.log_all(initial_data_entries)?;
+
+    let mut current_time = Instant::now();
     loop {
-        let weights = scales
-            .iter_mut()
-            .map(|scale| {
-                let weight = scale.get_weight();
-                scale.check_last_stable();
-                weight
-            })
-            .collect::<Result<Vec<Weight>, Error>>()?;
+        let mut weights = Vec::with_capacity(scales.len());
+        let mut data_entries = Vec::with_capacity(scales.len());
+        for scale in scales.iter_mut() {
+            match scale.get_weight() {
+                Ok(weight) => weights.push(weight),
+                Err(e) => match e {
+                    Error::Phidget(err) => {
+                        eprintln!("Phidget error: {:?}", err);
+                        println!("Restarting scale...");
+                        if let Err(e) = scale.restart() {
+                            eprintln!("Couldn't restart scale: {:?}", e);
+                        } else {
+                            if let Ok(weight) = scale.get_weight() {
+                                println!("Scale restarted");
+                                database.log(&DataEntry::new(
+                                    DataAction::Starting,
+                                    weight.get_amount(),
+                                    scale.get_device(),
+                                    Database::get_timestamp()?,
+                                    "Caldo HQ".into(),
+                                    "Fake Chicken Wings".into(),
+                                ))?;
+                            }
+                        }
+                    }
+                    _ => {
+                        eprintln!("Unrecoverable error: {:?}", e)
+                    }
+                },
+            }
+            if let Some(data_entry) = scale.check_for_action() {
+                data_entries.push(data_entry);
+            }
+        }
         println!("{:?}", weights);
-        let log = Log::new(DataAction::RanOut, 69., scales[0].get_device().clone());
-        let logs = [log];
-        database.log_all(&logs)?;
-        interval.tick().await;
+        database.log_all(data_entries)?;
+
+        while current_time.elapsed() < Duration::from_millis(1000) {
+            thread::sleep(Duration::from_millis(250));
+        }
+        current_time = Instant::now();
     }
 
     // TODO: erroring out logging in db
-}
-
-async fn demo(mut scales: Vec<Scale>) -> Result<(), Error> {
-    let backend = Backend::new("http://127.0.0.1:8080/");
-
-    let mut interval = tokio::time::interval(Duration::from_millis(500));
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    loop {
-        let readings = scales
-            .iter_mut()
-            .map(Scale::get_weight)
-            .collect::<Result<Vec<Weight>, Error>>()?;
-        println!("{:?}", readings);
-        if let Err(e) = backend.post(readings).await {
-            eprintln!("{}", e);
-        };
-        interval.tick().await;
-    }
 }
 
 #[cfg(test)]
