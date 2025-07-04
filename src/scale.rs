@@ -2,7 +2,7 @@ use crate::data::{DataAction, DataEntry, Database};
 use crate::error::Error;
 use log::info;
 use menu::device::Device;
-use menu::libra::Libra;
+use menu::libra::{Config, Libra};
 use menu::read::Read;
 use phidget::{Phidget, devices::VoltageRatioInput};
 use std::path::Path;
@@ -11,26 +11,44 @@ use std::time::Duration;
 
 const BUFFER_LENGTH: usize = 20;
 const MAX_NOISE: f64 = 3.0;
+
+pub struct DisconnectedScale {
+    config: Config,
+    device: Device,
+}
+impl DisconnectedScale {
+    pub fn new(config: Config, device: Device) -> Self {
+        Self { config, device }
+    }
+    fn from_libra_menu(libra: Libra) -> Self {
+        Self::new(libra.config, libra.device)
+    }
+    pub fn from_config(path: &Path) -> Result<Vec<Self>, Error> {
+        Ok(Libra::read_as_vec(path)?
+            .into_iter()
+            .map(Self::from_libra_menu)
+            .collect())
+    }
+    pub fn connect(self) -> Result<Scale, Error> {
+        Scale::new(self.config, self.device, Duration::from_millis(100))
+    }
+}
 pub struct Scale {
     vin: VoltageRatioInput,
+    config: Config,
     device: Device,
-    gain: f64,
-    offset: f64,
     weight_buffer: Vec<f64>,
     last_stable_weight: Option<f64>,
 }
 impl Scale {
     pub fn new(
-        phidget_sn: i32,
-        load_cell_id: i32,
+        config: Config,
         device: Device,
         sample_period: Duration,
-        gain: f64,
-        offset: f64,
     ) -> Result<Self, Error> {
         let mut vin = VoltageRatioInput::new();
-        vin.set_channel(load_cell_id).map_err(Error::Phidget)?;
-        vin.set_serial_number(phidget_sn).map_err(Error::Phidget)?;
+        vin.set_channel(config.load_cell_id).map_err(Error::Phidget)?;
+        vin.set_serial_number(config.phidget_id).map_err(Error::Phidget)?;
         vin.open_wait(Duration::from_secs(5))
             .map_err(Error::Phidget)?;
         vin.set_data_interval(sample_period)
@@ -43,9 +61,8 @@ impl Scale {
         sleep(Duration::from_secs(1));
         Ok(Self {
             vin,
+            config,
             device,
-            gain,
-            offset,
             weight_buffer: Vec::with_capacity(BUFFER_LENGTH),
             last_stable_weight: None,
         })
@@ -67,7 +84,7 @@ impl Scale {
         self.vin.voltage_ratio().map_err(Error::Phidget)
     }
     fn get_reading(&self) -> Result<f64, Error> {
-        self.get_raw_reading().map(|r| r * self.gain - self.offset)
+        self.get_raw_reading().map(|r| r * self.config.gain - self.config.offset)
     }
     fn update_buffer(&mut self, weight: f64) {
         if self.weight_buffer.len() < BUFFER_LENGTH {
@@ -132,12 +149,9 @@ impl Scale {
     }
     fn from_libra_menu(libra: Libra) -> Result<Self, Error> {
         Self::new(
-            libra.config.phidget_id,
-            libra.config.load_cell_id,
+            libra.config,
             libra.device,
             Duration::from_millis(250),
-            libra.config.gain,
-            libra.config.offset,
         )
     }
     pub fn from_config(path: &Path) -> Result<Vec<Self>, Error> {
@@ -145,6 +159,9 @@ impl Scale {
             .into_iter()
             .map(Self::from_libra_menu)
             .collect()
+    }
+    pub fn log_error(&self, error: Error) {
+        eprintln!("Scale {:} error: {:?}", self.device, error)
     }
 }
 #[derive(Debug)]

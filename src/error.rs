@@ -16,4 +16,6 @@ pub enum Error {
     DateFormat(#[from] time::error::Format),
     #[error("Menu Error: {0}")]
     Menu(#[from] menu::error::Error),
+    #[error("Failed to start scale")]
+    Initialization,
 }

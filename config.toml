@@ -3,6 +3,8 @@ phidget-id = 716304
 load-cell-id = 0
 gain = 9795012.35633 #4946698.13678
 offset = 674.1 #-107.9425
+location = "Caldo HQ"
+ingredient = "Cheetos"
 
 [libra-0.device]
 model = "LibraV0"
@@ -14,6 +16,8 @@ phidget-id = 716800
 load-cell-id = 0
 gain = 4850591.56128
 offset = 93.15464
+location = "Caldo HQ"
+ingredient = "Potato Chips"
 
 [libra-1.device]
 model = "LibraV0"
@@ -24,6 +28,8 @@ phidget-id = 716800
 load-cell-id = 1
 gain = 4948323.42714
 offset = 322.37737
+location = "Caldo HQ"
+ingredient = "Pretzels"
 
 [libra-2.device]
 model = "LibraV0"
@@ -34,6 +40,8 @@ phidget-id = 716800
 load-cell-id = 2
 gain = 4835161.7044
 offset = 373.75691
+location = "Caldo HQ"
+ingredient = "Fake Chicken Wings"
 
 [libra-3.device]
 model = "LibraV0"
