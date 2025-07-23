@@ -11,4 +11,10 @@ rusqlite = "0.36.0"
 time = { version = "0.3", features = ["formatting", "local-offset"] }
 reqwest = "0.12.20"
 serde_json = "1.0.140"
-menu = { git = "https://github.com/rileyhernandez/menu.git"}
+menu = { git = "https://github.com/rileyhernandez/menu.git" }
+syslog = "7.0.0"
+scale = { git = "https://github.com/rileyhernandez/scale.git" }
+
+[features]
+default = []
+config = [ "menu/generate" ]

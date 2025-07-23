@@ -4,6 +4,7 @@ use menu::device::Device;
 use rusqlite::{Connection, params};
 use std::path::PathBuf;
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
+use scale::scale::Action as ScaleAction;
 
 pub struct Database {
     connection: Connection,
@@ -36,7 +37,7 @@ impl Database {
                 params![
                     data_entry.device.to_string(),
                     data_entry.timestamp.format(&Iso8601::DEFAULT)?,
-                    data_entry.data_action.to_string(),
+                    data_entry.scale_action.to_string(),
                     data_entry.amount,
                     data_entry.location,
                     data_entry.ingredient
@@ -53,25 +54,8 @@ impl Database {
         Ok(())
     }
 }
-
-pub enum DataAction {
-    Served,
-    RanOut,
-    Refilled,
-    Starting,
-}
-impl std::fmt::Display for DataAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DataAction::Served => write!(f, "Served"),
-            DataAction::RanOut => write!(f, "Ran Out"),
-            DataAction::Refilled => write!(f, "Refilled"),
-            DataAction::Starting => write!(f, "Starting"),
-        }
-    }
-}
 pub struct DataEntry {
-    data_action: DataAction,
+    scale_action: ScaleAction,
     amount: f64,
     device: Device,
     timestamp: OffsetDateTime,
@@ -80,7 +64,7 @@ pub struct DataEntry {
 }
 impl DataEntry {
     pub fn new(
-        data_action: DataAction,
+        scale_action: ScaleAction,
         amount: f64,
         device: Device,
         timestamp: OffsetDateTime,
@@ -88,7 +72,7 @@ impl DataEntry {
         ingredient: String,
     ) -> Self {
         Self {
-            data_action,
+            scale_action,
             amount,
             device,
             timestamp,

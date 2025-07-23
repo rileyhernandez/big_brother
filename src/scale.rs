@@ -1,6 +1,6 @@
 use crate::data::{DataAction, DataEntry, Database};
 use crate::error::Error;
-use log::info;
+use log::{info};
 use menu::device::Device;
 use menu::libra::{Config, Libra};
 use menu::read::Read;
@@ -32,6 +32,9 @@ impl DisconnectedScale {
     pub fn connect(self) -> Result<Scale, Error> {
         Scale::new(self.config, self.device, Duration::from_millis(100))
     }
+    pub fn get_device(&self) -> Device {
+        self.device.clone()
+    }
 }
 pub struct Scale {
     vin: VoltageRatioInput,
@@ -41,14 +44,12 @@ pub struct Scale {
     last_stable_weight: Option<f64>,
 }
 impl Scale {
-    pub fn new(
-        config: Config,
-        device: Device,
-        sample_period: Duration,
-    ) -> Result<Self, Error> {
+    pub fn new(config: Config, device: Device, sample_period: Duration) -> Result<Self, Error> {
         let mut vin = VoltageRatioInput::new();
-        vin.set_channel(config.load_cell_id).map_err(Error::Phidget)?;
-        vin.set_serial_number(config.phidget_id).map_err(Error::Phidget)?;
+        vin.set_channel(config.load_cell_id)
+            .map_err(Error::Phidget)?;
+        vin.set_serial_number(config.phidget_id)
+            .map_err(Error::Phidget)?;
         vin.open_wait(Duration::from_secs(5))
             .map_err(Error::Phidget)?;
         vin.set_data_interval(sample_period)
@@ -84,7 +85,8 @@ impl Scale {
         self.vin.voltage_ratio().map_err(Error::Phidget)
     }
     fn get_reading(&self) -> Result<f64, Error> {
-        self.get_raw_reading().map(|r| r * self.config.gain - self.config.offset)
+        self.get_raw_reading()
+            .map(|r| r * self.config.gain - self.config.offset)
     }
     fn update_buffer(&mut self, weight: f64) {
         if self.weight_buffer.len() < BUFFER_LENGTH {
@@ -123,8 +125,7 @@ impl Scale {
             if let Some(last_stable) = self.last_stable_weight {
                 let delta = last - last_stable;
                 if delta.abs() > MAX_NOISE {
-                    println!("New stable value: {:?}g", last);
-                    println!("Delta since last stable: {}", delta);
+                    info!("Scale: {}; Delta: {delta}", self.get_device());
                     self.last_stable_weight = Some(*last);
                     let action = {
                         if delta > 0. {
@@ -146,22 +147,6 @@ impl Scale {
             self.last_stable_weight = Some(*last);
         }
         None
-    }
-    fn from_libra_menu(libra: Libra) -> Result<Self, Error> {
-        Self::new(
-            libra.config,
-            libra.device,
-            Duration::from_millis(250),
-        )
-    }
-    pub fn from_config(path: &Path) -> Result<Vec<Self>, Error> {
-        Libra::read_as_vec(path)?
-            .into_iter()
-            .map(Self::from_libra_menu)
-            .collect()
-    }
-    pub fn log_error(&self, error: Error) {
-        eprintln!("Scale {:} error: {:?}", self.device, error)
     }
 }
 #[derive(Debug)]

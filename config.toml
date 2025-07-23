@@ -1,8 +1,8 @@
 [libra-0.config]
 phidget-id = 716304
 load-cell-id = 0
-gain = 9795012.35633 #4946698.13678
-offset = 674.1 #-107.9425
+gain = 10095659.7359
+offset = -27.5
 location = "Caldo HQ"
 ingredient = "Cheetos"
 

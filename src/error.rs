@@ -2,8 +2,8 @@ use thiserror;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Phidget Error: {0}")]
-    Phidget(#[from] phidget::Error),
+    #[error("Scale Error: {0}")]
+    Scale(#[from] scale::error::Error),
     #[error("Rusqlite Error: {0}")]
     Rusqlite(#[from] rusqlite::Error),
     #[error("Time Offset Error: {0}")]
@@ -18,4 +18,10 @@ pub enum Error {
     Menu(#[from] menu::error::Error),
     #[error("Failed to start scale")]
     Initialization,
+    #[error("System Logging Error: {0}")]
+    Syslog(#[from] syslog::Error),
+    #[error("IO Error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Env Var Error: {0}")]
+    Env(#[from] std::env::VarError),
 }

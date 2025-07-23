@@ -1,54 +1,85 @@
-use crate::data::{DataAction, DataEntry, Database};
+use crate::data::{DataEntry, Database};
 use crate::error::Error;
-use crate::scale::{DisconnectedScale, Scale};
+use log::{LevelFilter, debug, error, info, warn};
 use std::time::{Duration, Instant};
 use std::{env, thread};
+use std::path::Path;
+use syslog::{Facility};
+use scale::scale::DisconnectedScale;
+use scale::error::Error as ScaleError;
+use scale::scale::Action as ScaleAction;
+
 mod data;
 mod error;
-mod scale;
+// mod scale;
+#[cfg(feature = "config")]
+mod config;
 
-fn main() -> Result<(), Error> {
-    // TODO: log boot in db
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let log_level = match args.get(1).map(|s| s.as_str()) {
+        Some("debug") => LevelFilter::Debug,
+        Some("prod") => LevelFilter::Info,
+        _ => {
+            // Default to production mode if the argument is missing or invalid.
+            println!(
+                "Usage: {} [debug|prod]",
+                args.first().unwrap_or(&"libra".to_string())
+            );
+            println!("Defaulting to 'prod' mode.");
+            LevelFilter::Info
+        }
+    };
+    syslog::init(Facility::LOG_USER, log_level, Some("libra")).expect("Couldn't initialize syslog");
 
-    let current_directory = env::current_dir().unwrap();
-    let config_path = current_directory.join("config.toml");
+    if let Err(e) = libra() {
+        error!("Unrecoverable Error: {e}")
+    }
+}
 
-    //todo: need to do this
-    let mut scales = Scale::from_config(&config_path)?;
+fn libra() -> Result<(), Error> {
+    info!("Libra application starting");
+    let home_var = env::var("HOME")?;
+    let libra_dir = Path::new(&home_var).join(".config/libra");
+    let config_path = libra_dir.join("config.toml");
     let disconnected_scales = DisconnectedScale::from_config(&config_path)?;
-    let mut scales = disconnected_scales
-        .into_iter()
-        .map( |disconnected_scale| {
-            match disconnected_scale.connect() {
-                Ok(scale) => Ok(scale),
-                Err(e) => {
-                    match e {
-                        Error::Phidget(phidget_error) => {
-                            todo!()
-                        }
-                        _ => Err(e)
-                    }
-                }
+    let mut scales = Vec::with_capacity(disconnected_scales.len());
+    for disconnected_scale in disconnected_scales {
+        let device = disconnected_scale.get_device();
+        match disconnected_scale.connect() {
+            Ok(scale) => {
+                info!("Scale connected: {}", device);
+                scales.push(scale);
             }
-        })
-        .collect::<Result<Vec<_>, Error>>()?;
+            Err(e) => match e {
+                ScaleError::Phidget(phidget_error) => {
+                    warn!("Scale failed to connect: {}", device);
+                    warn!("{phidget_error}")
+                }
+                _ => {
+                    error!("Unrecoverable Error");
+                    return Err(Error::from(e));
+                }
+            },
+        }
+    }
 
-    let database_path = current_directory.join("data.db");
+    let database_path = libra_dir.join("data.db");
     let database = Database::new(database_path)?;
 
     let initial_data_entries: Vec<DataEntry> = scales
         .iter_mut()
         .map(|scale| match scale.get_weight() {
             Ok(weight) => Ok(DataEntry::new(
-                DataAction::Starting,
+                ScaleAction::Starting,
                 weight.get_amount(),
                 scale.get_device(),
                 Database::get_timestamp().expect("Couldn't get timestamp"),
                 "Caldo HQ".into(),
                 "Fake Chicken Wings".into(),
             )),
-            Err(e) => {
-                scale.log_error(e);
+            Err(_e) => {
+                error!("Device: {}", scale.get_device());
                 Err(Error::Initialization)
             }
         })
@@ -65,6 +96,7 @@ fn main() -> Result<(), Error> {
         .collect::<Result<_, _>>()?;
     database.log_all(initial_data_entries)?;
 
+
     let mut current_time = Instant::now();
     loop {
         // todo: take out weights before prod
@@ -74,15 +106,15 @@ fn main() -> Result<(), Error> {
             match scale.get_weight() {
                 Ok(weight) => weights.push(weight),
                 Err(e) => match e {
-                    Error::Phidget(err) => {
-                        eprintln!("Phidget error: {:?}", err);
-                        println!("Restarting scale...");
+                    ScaleError::Phidget(err) => {
+                        warn!("Phidget error: {:?}", err);
+                        info!("Restarting scale...");
                         if let Err(e) = scale.restart() {
-                            eprintln!("Couldn't restart scale: {:?}", e);
+                            warn!("Couldn't restart scale: {:?}", e);
                         } else if let Ok(weight) = scale.get_weight() {
-                            println!("Scale restarted");
+                            info!("Scale restarted");
                             data_entries.push(DataEntry::new(
-                                DataAction::Starting,
+                                ScaleAction::Starting,
                                 weight.get_amount(),
                                 scale.get_device(),
                                 Database::get_timestamp()?,
@@ -92,36 +124,31 @@ fn main() -> Result<(), Error> {
                         }
                     }
                     _ => {
-                        eprintln!("Unrecoverable error: {:?}", e);
-                        return Err(e);
-                    }
+                        error!("{}", scale.get_device());
+                        return Err(Error::from(e))
+                    },
                 },
             }
-            if let Some(data_entry) = scale.check_for_action() {
+            if let Some((scale_action, delta)) = scale.check_for_action() {
+                let scale_config = scale.get_config();
+                let data_entry = DataEntry::new(
+                    scale_action,
+                    delta,
+                    scale.get_device(),
+                    Database::get_timestamp()?,
+                    scale_config.location,
+                    scale_config.ingredient,
+                );
                 data_entries.push(data_entry);
             }
             Ok::<(), Error>(())
         })?;
-        println!("{:?}", weights);
+        debug!("{:?}", weights);
         database.log_all(data_entries)?;
 
         while current_time.elapsed() < Duration::from_millis(1000) {
             thread::sleep(Duration::from_millis(250));
         }
         current_time = Instant::now();
-    }
-
-    // TODO: erroring out logging in db
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::scale::Scale;
-    use std::path::Path;
-
-    #[test]
-    fn menu() {
-        let path = Path::new("/home/riley/Downloads/test/config.toml");
-        let _ = Scale::from_config(path);
     }
 }
