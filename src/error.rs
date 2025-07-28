@@ -1,5 +1,3 @@
-use thiserror;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Scale Error: {0}")]
@@ -24,4 +22,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("Env Var Error: {0}")]
     Env(#[from] std::env::VarError),
+    #[error("Other: {0}")]
+    Other(String)
 }

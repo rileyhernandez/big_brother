@@ -15,12 +15,13 @@ impl Database {
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS libra_logs (
-                scale TEXT NOT NULL,
+                device TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
                 action TEXT NOT NULL,
                 amount NUMBER NOT NULL,
                 location TEXT NOT NULL,
-                ingredient TEXT NOT NULL
+                ingredient TEXT NOT NULL,
+                synced INTEGER NOT NULL DEFAULT 0 CHECK (synced IN (0, 1))
             )",
                 [],
             )
@@ -33,14 +34,15 @@ impl Database {
     pub fn log(&self, data_entry: &DataEntry) -> Result<(), Error> {
         self.connection
             .execute(
-                "INSERT INTO libra_logs (scale, timestamp, action, amount, location, ingredient) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO libra_logs (device, timestamp, action, amount, location, ingredient, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     data_entry.device.to_string(),
                     data_entry.timestamp.format(&Iso8601::DEFAULT)?,
                     data_entry.scale_action.to_string(),
                     data_entry.amount,
                     data_entry.location,
-                    data_entry.ingredient
+                    data_entry.ingredient,
+                    0, // sync bool
                 ],
             )
             .map_err(Rusqlite)?;

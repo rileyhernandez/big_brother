@@ -15,6 +15,8 @@ mod error;
 #[cfg(feature = "config")]
 mod config;
 
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let log_level = match args.get(1).map(|s| s.as_str()) {
@@ -75,8 +77,8 @@ fn libra() -> Result<(), Error> {
                 weight.get_amount(),
                 scale.get_device(),
                 Database::get_timestamp().expect("Couldn't get timestamp"),
-                "Caldo HQ".into(),
-                "Fake Chicken Wings".into(),
+                scale.get_config().location,
+                scale.get_config().ingredient,
             )),
             Err(_e) => {
                 error!("Device: {}", scale.get_device());
@@ -98,8 +100,16 @@ fn libra() -> Result<(), Error> {
 
 
     let mut current_time = Instant::now();
+    let mut last_heartbeat = current_time;
     loop {
         // todo: take out weights before prod
+        let is_time_for_heartbeat = if current_time - last_heartbeat > HEARTBEAT_INTERVAL {
+            last_heartbeat = current_time;
+            true
+        } else {
+            false
+        };
+
         let mut weights = Vec::with_capacity(scales.len());
         let mut data_entries = Vec::with_capacity(scales.len());
         scales.iter_mut().try_for_each(|scale| {
@@ -118,8 +128,8 @@ fn libra() -> Result<(), Error> {
                                 weight.get_amount(),
                                 scale.get_device(),
                                 Database::get_timestamp()?,
-                                "Caldo HQ".into(),
-                                "Fake Chicken Wings".into(),
+                                scale.get_config().location,
+                                scale.get_config().ingredient,
                             ))
                         }
                     }
@@ -134,6 +144,17 @@ fn libra() -> Result<(), Error> {
                 let data_entry = DataEntry::new(
                     scale_action,
                     delta,
+                    scale.get_device(),
+                    Database::get_timestamp()?,
+                    scale_config.location,
+                    scale_config.ingredient,
+                );
+                data_entries.push(data_entry);
+            } else if is_time_for_heartbeat {
+                let scale_config = scale.get_config();
+                let data_entry = DataEntry::new(
+                    ScaleAction::Heartbeat,
+                    weights.last().ok_or(Error::Other("Couldn't get weight".into()))?.get_amount(),
                     scale.get_device(),
                     Database::get_timestamp()?,
                     scale_config.location,
