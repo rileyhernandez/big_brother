@@ -11,11 +11,6 @@ use scale::scale::Action as ScaleAction;
 
 mod data;
 mod error;
-// mod scale;
-#[cfg(feature = "config")]
-mod config;
-
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -98,12 +93,19 @@ fn libra() -> Result<(), Error> {
         .collect::<Result<_, _>>()?;
     database.log_all(initial_data_entries)?;
 
-
+    let heartbeat_periods: Vec<Duration> = scales.iter().map(|scale| scale.get_config().heartbeat_period).collect();
+    let heartbeat_period = heartbeat_periods
+        .into_iter()
+        .min().ok_or(Error::Initialization)?;
+    let phidget_sample_periods: Vec<Duration> = scales.iter().map(|scale| scale.get_config().phidget_sample_period).collect();
+    let phidget_sample_period = phidget_sample_periods
+        .into_iter()
+        .min().ok_or(Error::Initialization)?;
     let mut current_time = Instant::now();
     let mut last_heartbeat = current_time;
     loop {
         // todo: take out weights before prod
-        let is_time_for_heartbeat = if current_time - last_heartbeat > HEARTBEAT_INTERVAL {
+        let is_time_for_heartbeat = if current_time - last_heartbeat > heartbeat_period {
             last_heartbeat = current_time;
             true
         } else {
@@ -167,8 +169,8 @@ fn libra() -> Result<(), Error> {
         debug!("{:?}", weights);
         database.log_all(data_entries)?;
 
-        while current_time.elapsed() < Duration::from_millis(1000) {
-            thread::sleep(Duration::from_millis(250));
+        while current_time.elapsed() < phidget_sample_period {
+            thread::sleep(Duration::from_millis(50));
         }
         current_time = Instant::now();
     }
