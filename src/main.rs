@@ -119,10 +119,18 @@ fn libra() -> Result<(), Error> {
                 Ok(weight) => weights.push(weight),
                 Err(e) => match e {
                     ScaleError::Phidget(err) => {
-                        warn!("Phidget error: {:?}", err);
+                        warn!("Phidget error: {err:?}");
                         info!("Restarting scale...");
                         if let Err(e) = scale.restart() {
-                            warn!("Couldn't restart scale: {:?}", e);
+                            warn!("Couldn't restart scale: {e:?}");
+                            data_entries.push(DataEntry::new(
+                                ScaleAction::Offline,
+                                0.,
+                                scale.get_device(),
+                                Database::get_timestamp()?,
+                                scale.get_config().location,
+                                scale.get_config().ingredient,
+                            ))
                         } else if let Ok(weight) = scale.get_weight() {
                             info!("Scale restarted");
                             data_entries.push(DataEntry::new(
