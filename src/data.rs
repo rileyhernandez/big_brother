@@ -15,7 +15,8 @@ impl Database {
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS libra_logs (
-                device TEXT NOT NULL,
+                model TEXT NOT NULL,
+                number TEXT NOT NULL,
                 timestamp TEXT NOT NULL,
                 action TEXT NOT NULL,
                 amount NUMBER NOT NULL,
@@ -34,9 +35,10 @@ impl Database {
     pub fn log(&self, data_entry: &DataEntry) -> Result<(), Error> {
         self.connection
             .execute(
-                "INSERT INTO libra_logs (device, timestamp, action, amount, location, ingredient, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO libra_logs (model, number, timestamp, action, amount, location, ingredient, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
-                    data_entry.device.to_string(),
+                    format!("{:?}", data_entry.device.model),
+                    data_entry.device.number.to_string(),
                     data_entry.timestamp.format(&Iso8601::DEFAULT)?,
                     data_entry.scale_action.to_string(),
                     data_entry.amount,
