@@ -27,9 +27,9 @@ jobs:
     - name: Get Phidget library
       run: curl -fsSL https://www.phidgets.com/downloads/setup_linux | bash - 
     - name: Install Phidget library
-      run: apt install -y libphidget22
+      run: sudo apt install -y libphidget22
     - name: Create symbolic link
-      run: ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so 
+      run: sudo ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so 
     - name: Build
       run: cargo build --release --verbose
     - name: Rename binary
