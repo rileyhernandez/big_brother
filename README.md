@@ -26,7 +26,7 @@ Big Brother is a real-time scale monitoring system designed to track weight chan
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:rileyhernandez/big_brother.git
    cd big_brother
    ```
 
