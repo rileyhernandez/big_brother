@@ -14,9 +14,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - runs-on: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            asset_name: big-brother-x86_64
           - runs-on: ubuntu-24.04-arm64
             target: aarch64-unknown-linux-gnu
             asset_name: big-brother-arm64
@@ -31,12 +28,7 @@ jobs:
     - name: Install Phidget library
       run: sudo apt install -y libphidget22
     - name: Create symbolic link
-      run: |
-        if ["${{ matrix.target }}" == "aarch64-unknown-linux-gnu"]; then
-          sudo ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
-        elif ["${{ matrix.target}}" == "x86_64-unknown-linux-gnu"]; then 
-          sudo lin -s /lib/x86_64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
-        fi
+      run: sudo ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
     - name: Build
       run: cargo build --release --verbose
     - name: Rename binary
