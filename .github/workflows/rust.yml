@@ -25,7 +25,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Get Phidget library
-      run: curl -fsSL https://www.phidgets.com/downloads/setup_linux | bash - 
+      run: |
+        curl -fsSL https://www.phidgets.com/downloads/setup_linux -o setup_linux.sh
+        sudo bash setup_linux.sh
     - name: Install Phidget library
       run: sudo apt install -y libphidget22
     - name: Create symbolic link
