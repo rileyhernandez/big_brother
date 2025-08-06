@@ -32,7 +32,12 @@ jobs:
       run: sudo apt install -y libphidget22
     - name: Create symbolic link
       if: matrix.target == 'aarch64-unknown-linux-gnu'
-      run: sudo ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so 
+      run: |
+        if ["${{ matrix.target }}" == "aarch64-unknown-linux-gnu"]; then
+          sudo ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
+        elif ["${{ matrix.target}}" == "x86_64-unknown-linux-gnu"]; then 
+          sudo lin -s /lib/x86_64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
+        fi
     - name: Build
       run: cargo build --release --verbose
     - name: Rename binary
