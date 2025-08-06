@@ -84,7 +84,7 @@ fn libra() -> Result<(), Error> {
             if let Err(e) = result {
                 match e {
                     Error::Initialization => None,
-                    _ => panic!("Unrecoverable error: {:?}", e),
+                    _ => panic!("Unrecoverable error: {e}"),
                 }
             } else {
                 Some(result)
@@ -104,7 +104,6 @@ fn libra() -> Result<(), Error> {
     let mut current_time = Instant::now();
     let mut last_heartbeat = current_time;
     loop {
-        // todo: take out weights before prod
         let is_time_for_heartbeat = if current_time - last_heartbeat > heartbeat_period {
             last_heartbeat = current_time;
             true
@@ -119,10 +118,10 @@ fn libra() -> Result<(), Error> {
                 Ok(weight) => weights.push(weight),
                 Err(e) => match e {
                     ScaleError::Phidget(err) => {
-                        warn!("Phidget error: {err:?}");
+                        warn!("Phidget error: {err}");
                         info!("Restarting scale...");
                         if let Err(e) = scale.restart() {
-                            warn!("Couldn't restart scale: {e:?}");
+                            warn!("Couldn't restart scale: {e}");
                             data_entries.push(DataEntry::new(
                                 ScaleAction::Offline,
                                 0.,
@@ -174,7 +173,7 @@ fn libra() -> Result<(), Error> {
             }
             Ok::<(), Error>(())
         })?;
-        debug!("{:?}", weights);
+        debug!("{weights:?}");
         database.log_all(data_entries)?;
 
         while current_time.elapsed() < phidget_sample_period {
