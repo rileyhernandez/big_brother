@@ -31,7 +31,6 @@ jobs:
     - name: Install Phidget library
       run: sudo apt install -y libphidget22
     - name: Create symbolic link
-      if: matrix.target == 'aarch64-unknown-linux-gnu'
       run: |
         if ["${{ matrix.target }}" == "aarch64-unknown-linux-gnu"]; then
           sudo ln -s /lib/aarch64-unknown-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
