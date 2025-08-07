@@ -38,7 +38,7 @@ impl Database {
                 "INSERT INTO libra_logs (model, number, timestamp, action, amount, location, ingredient, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     format!("{:?}", data_entry.device.model),
-                    data_entry.device.number.to_string(),
+                    data_entry.device.serial_number.to_string(),
                     data_entry.timestamp.format(&Iso8601::DEFAULT)?,
                     data_entry.scale_action.to_string(),
                     data_entry.amount,
