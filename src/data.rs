@@ -35,7 +35,7 @@ impl Database {
     pub fn log(&self, data_entry: &DataEntry) -> Result<(), Error> {
         self.connection
             .execute(
-                "INSERT INTO libra_logs (model, number, timestamp, action, amount, location, ingredient, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO libra_logs (model, number, timestamp, action, amount, location, ingredient, synced) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     format!("{:?}", data_entry.device.model),
                     data_entry.device.serial_number.to_string(),
