@@ -11,6 +11,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -32,13 +35,14 @@ jobs:
     - name: Create symbolic link
       run: sudo ln -s /lib/aarch64-linux-gnu/libphidget22.so.0 /usr/lib/libphidget22.so
     - name: Build
-      run: cargo build --release --verbose
+      run: cargo build --release --verbose --target ${{ matrix.target }}
     - name: Rename binary
-      run: cp target/release/big-brother ${{ matrix.asset_name }}
+      run: cp target/${{ matrix.target }}/release/big-brother ${{ matrix.asset_name }}
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
         files: ${{ matrix.asset_name }}
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
