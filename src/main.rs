@@ -36,9 +36,7 @@ fn main() {
 
 fn libra() -> Result<(), Error> {
     info!("Libra application starting");
-    let home_var = env::var("HOME")?;
-    let libra_dir = Path::new(&home_var).join(".config/libra");
-    let config_path = libra_dir.join("config.toml");
+    let config_path = Path::new("/etc/libra/config.toml");
     let disconnected_scales = DisconnectedScale::from_config(&config_path)?;
     let mut scales = Vec::with_capacity(disconnected_scales.len());
     for disconnected_scale in disconnected_scales {
@@ -61,8 +59,8 @@ fn libra() -> Result<(), Error> {
         }
     }
 
-    let database_path = libra_dir.join("data.db");
-    let database = Database::new(database_path)?;
+    let database_path = Path::new("/var/lib/libra/data.db");
+    let database = Database::new(database_path.into())?;
 
     let initial_data_entries: Vec<DataEntry> = scales
         .iter_mut()
