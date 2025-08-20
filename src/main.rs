@@ -1,13 +1,13 @@
 use crate::data::{DataEntry, Database};
 use crate::error::Error;
 use log::{LevelFilter, debug, error, info, warn};
+use menu::action::Action as ScaleAction;
+use scale::error::Error as ScaleError;
+use scale::scale::DisconnectedScale;
+use std::path::Path;
 use std::time::{Duration, Instant};
 use std::{env, thread};
-use std::path::Path;
-use syslog::{Facility};
-use scale::scale::DisconnectedScale;
-use scale::error::Error as ScaleError;
-use scale::scale::Action as ScaleAction;
+use syslog::Facility;
 
 mod data;
 mod error;
@@ -37,7 +37,7 @@ fn main() {
 fn libra() -> Result<(), Error> {
     info!("Libra application starting");
     let config_path = Path::new("/etc/libra/config.toml");
-    let disconnected_scales = DisconnectedScale::from_config(&config_path)?;
+    let disconnected_scales = DisconnectedScale::from_config(config_path)?;
     let mut scales = Vec::with_capacity(disconnected_scales.len());
     for disconnected_scale in disconnected_scales {
         let device = disconnected_scale.get_device();
@@ -91,14 +91,22 @@ fn libra() -> Result<(), Error> {
         .collect::<Result<_, _>>()?;
     database.log_all(initial_data_entries)?;
 
-    let heartbeat_periods: Vec<Duration> = scales.iter().map(|scale| scale.get_config().heartbeat_period).collect();
+    let heartbeat_periods: Vec<Duration> = scales
+        .iter()
+        .map(|scale| scale.get_config().heartbeat_period)
+        .collect();
     let heartbeat_period = heartbeat_periods
         .into_iter()
-        .min().ok_or(Error::Initialization)?;
-    let phidget_sample_periods: Vec<Duration> = scales.iter().map(|scale| scale.get_config().phidget_sample_period).collect();
+        .min()
+        .ok_or(Error::Initialization)?;
+    let phidget_sample_periods: Vec<Duration> = scales
+        .iter()
+        .map(|scale| scale.get_config().phidget_sample_period)
+        .collect();
     let phidget_sample_period = phidget_sample_periods
         .into_iter()
-        .min().ok_or(Error::Initialization)?;
+        .min()
+        .ok_or(Error::Initialization)?;
     let mut current_time = Instant::now();
     let mut last_heartbeat = current_time;
     loop {
@@ -142,8 +150,8 @@ fn libra() -> Result<(), Error> {
                     }
                     _ => {
                         error!("{}", scale.get_device());
-                        return Err(Error::from(e))
-                    },
+                        return Err(Error::from(e));
+                    }
                 },
             }
             if let Some((scale_action, delta)) = scale.check_for_action() {
@@ -161,7 +169,10 @@ fn libra() -> Result<(), Error> {
                 let scale_config = scale.get_config();
                 let data_entry = DataEntry::new(
                     ScaleAction::Heartbeat,
-                    weights.last().ok_or(Error::Other("Couldn't get weight".into()))?.get_amount(),
+                    weights
+                        .last()
+                        .ok_or(Error::Other("Couldn't get weight".into()))?
+                        .get_amount(),
                     scale.get_device(),
                     Database::get_timestamp()?,
                     scale_config.location,

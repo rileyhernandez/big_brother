@@ -23,5 +23,5 @@ pub enum Error {
     #[error("Env Var Error: {0}")]
     Env(#[from] std::env::VarError),
     #[error("Other: {0}")]
-    Other(String)
+    Other(String),
 }

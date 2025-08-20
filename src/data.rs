@@ -1,10 +1,10 @@
 use crate::error::Error;
 use crate::error::Error::{Rusqlite, TimeOffset};
+use menu::action::Action as ScaleAction;
 use menu::device::Device;
 use rusqlite::{Connection, params};
 use std::path::PathBuf;
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
-use scale::scale::Action as ScaleAction;
 
 pub struct Database {
     connection: Connection,
